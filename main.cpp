@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdio>
 #include <iostream>
 #include <stdexcept>
@@ -74,13 +75,48 @@ void RunUdpServer() {
             {
                 std::cout << (int) buf[i] << ' ';
             }
+            std::cout << std::dec;
             auto parsed = parser::ParseHeader(buf);
-            auto quetion = parser::ParseQuestion(buf + parser::QUESTION_OFFSET);
+            size_t offset = parser::QUESTION_OFFSET;
+            std::cout << "question_offset = " << offset  << "\n";
+            auto quetion = parser::ParseQuestion(buf + offset, parsed.question_count);
+            offset += quetion.second;
+
+            std::cout << "answer_offset = " << offset  << "\n";
+
+
+            auto answer = parser::ParseResource(buf + offset, parsed.answer_count);
+            offset += answer.second;
+
+            std::cout << "authority_offset = " << offset  << "\n";
+
+
+            auto authority = parser::ParseResource(buf + offset, parsed.name_service_count);
+            offset += authority.second;
+
+            std::cout << "additional_offset = " << offset  << "\n"; 
+
+
+            auto additional = parser::ParseResource(buf + offset, parsed.additional_count);
+            offset += additional.second;
+
             std::cout << parsed;
-            std::cout << quetion;
+            std::cout << quetion.first[0];
+            std::cout << "Answer size: " << answer.first.size() << "\n";
+            if (!answer.first.empty()) {
+                std::cout <<  answer.first[0];
+            }
+            std::cout << "Authority size: " << authority.first.size()  << "\n";
+            if (!authority.first.empty()) {
+                std::cout << authority.first[0];
+            } 
+            std::cout << "Additional size: " << additional.first.size()  << "\n";
+            if (!additional.first.empty()) {
+                std::cout << additional.first[0];
+            } 
+            // std::cout << "Additional size: " << additional.size()  << "\n" <<  (additional.empty() ? parser::Resource{}: additional[0]);
             
             std::cout<< std::endl << "===============UDP=============" << std::endl;
-
         }
 
     }

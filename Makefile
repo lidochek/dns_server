@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-c -Wall
 LDFLAGS=
-SOURCES=main.cpp parser.hpp parser.cpp
+SOURCES=main.cpp parser.hpp parser.cpp helper.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=dns_server
 

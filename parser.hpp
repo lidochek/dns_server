@@ -1,6 +1,8 @@
 
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace parser {
@@ -42,29 +44,40 @@ namespace parser {
     };
     
     struct Header {
-        uint16_t id;
+        uint64_t id;
         bool qr;
         KindQuery opcode;
         bool authoritative_answer;
         bool trun_cation;
         bool recursion_desired;
         bool recursion_available;
-        uint32_t response_code;
-        uint16_t question_count;
-        uint16_t answer_count;
-        uint16_t name_service_count;
-        uint16_t additional_count;
+        uint64_t response_code;
+        uint64_t question_count;
+        uint64_t answer_count;
+        uint64_t name_service_count;
+        uint64_t additional_count;
     };
     
     struct Question {
         std::vector<std::string> domain;
         QueryType q_type;
-        QueryType q_class;
+        QueryClass q_class;
+    };
+
+    struct Resource {
+        std::string name;
+        QueryType r_type;
+        QueryClass r_class;
+        uint64_t ttl;
+        uint64_t r_length;
+        std::string r_data;
     };
     
     Header ParseHeader(unsigned char* buffer);
-    Question ParseQuestion(unsigned char* buffer);
+    std::pair<std::vector<Question>, size_t> ParseQuestion(unsigned char* buffer, uint64_t count);
+    std::pair<std::vector<Resource>, size_t> ParseResource(unsigned char* buffer, uint64_t count);
     
     std::ostream& operator<< (std::ostream& os, const Header& header);
     std::ostream& operator<< (std::ostream& os, const Question& header);
+    std::ostream& operator<< (std::ostream& os, const Resource& header);
 }
