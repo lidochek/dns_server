@@ -1,2 +1,5 @@
 dns_server
 *.o
+tests/parser_test
+__pycache__/
+tests/cache_test

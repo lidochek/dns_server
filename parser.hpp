@@ -1,4 +1,4 @@
-
+#pragma once
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -33,6 +33,7 @@ namespace parser {
         MINFO       = 14,
         MX          = 15,
         TXT         = 16,
+        OPT         = 41,
     };
     enum class QueryClass {
         UNKNOWN     = 0,
@@ -73,9 +74,13 @@ namespace parser {
         std::string r_data;
     };
     
-    Header ParseHeader(unsigned char* buffer);
-    std::pair<std::vector<Question>, size_t> ParseQuestion(unsigned char* buffer, uint64_t count);
-    std::pair<std::vector<Resource>, size_t> ParseResource(unsigned char* buffer, uint64_t count);
+    Header ParseHeader(const unsigned char* buffer);
+    std::pair<std::vector<Question>, size_t> ParseQuestion(const unsigned char* buffer, uint64_t count);
+    std::pair<std::vector<Resource>, size_t> ParseResource(const unsigned char* buffer, uint64_t count);
+
+    void PackHeader(std::vector<unsigned char>& buffer, const Header& header);
+    void PackQuestion(std::vector<unsigned char>& buffer, const Question& question);
+    void PackResource(std::vector<unsigned char>& buffer, const Resource& resource);
     
     std::ostream& operator<< (std::ostream& os, const Header& header);
     std::ostream& operator<< (std::ostream& os, const Question& header);

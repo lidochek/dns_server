@@ -1,24 +1,19 @@
 #include "parser.hpp"
 #include "helper.hpp"
-#include <algorithm>
-#include <bitset>
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 namespace parser {
 
 
-Header ParseHeader(unsigned char* buffer) {
-    std::cout << "\nParseHeader\n";
-
-    Header result;
+Header ParseHeader(const unsigned char* buffer) {
+    Header result{};
     result.id = helper::ParseNumber(buffer, 2);
     result.qr = buffer[2] & (1 << 7);
-    std::cout << "KindQuery = " << ((buffer[2] & 0b0111'1000) >> 3) << '\n';
     result.opcode = static_cast<KindQuery>((buffer[2] & 0b0111'1000) >> 3);
-    std::cout << "buffer[2] = " << std::bitset<8>{buffer[2]} << '\n';
     result.authoritative_answer = buffer[2] & 0b100;
     result.trun_cation = buffer[2] & 0b10;
     result.recursion_desired = buffer[2] & 0b1;
@@ -50,7 +45,7 @@ std::ostream& operator<< (std::ostream& os, const Header& header) {
     return os;
 }
 
-std::pair<std::vector<Question>, size_t> ParseQuestion(unsigned char* buffer, uint64_t count) {
+std::pair<std::vector<Question>, size_t> ParseQuestion(const unsigned char* buffer, uint64_t count) {
     std::vector<Question> result;
     size_t current_byte = 0;
     for (uint64_t i = 0; i < count; i++)
@@ -71,7 +66,7 @@ std::pair<std::vector<Question>, size_t> ParseQuestion(unsigned char* buffer, ui
         current_byte += 2;
         result.emplace_back(std::move(question));
     }
-    
+
     return {result, current_byte};
 }
 
@@ -79,7 +74,7 @@ std::ostream& operator<< (std::ostream& os, const Question& quetion) {
     os << "Question.\n" << std::dec;
     for (auto &part : quetion.domain)
     {
-        std::cout << part << ".";
+        os << part << ".";
     }
     os << "\n";
     os << "Type: " << (int) quetion.q_type << "\n";
@@ -88,20 +83,27 @@ std::ostream& operator<< (std::ostream& os, const Question& quetion) {
     return os;
 }
 
-std::pair<std::vector<Resource>, size_t> ParseResource(unsigned char* buffer, uint64_t count){
-
+std::pair<std::vector<Resource>, size_t> ParseResource(const unsigned char* buffer, uint64_t count) {
     std::vector<Resource> result;
     size_t current_byte = 0;
     for (uint64_t i = 0; i < count; i++)
     {
         Resource resource;
-
         resource.name = "";
-        while(buffer[current_byte]) {
-            resource.name.push_back(buffer[current_byte]);
+        bool pointer = false;
+        while(uint64_t length = buffer[current_byte]) {
+            pointer = (length & 0xc0) == 0xc0;
+            size_t count = pointer ? 2 : length + 1;
+            for (size_t i = 0; i < count; ++i) {
+                resource.name.push_back(buffer[current_byte++]);
+            }
+            if (pointer) {
+                break;
+            }
+        }
+        if (!pointer) {
             ++current_byte;
         }
-        ++current_byte;
 
         resource.r_type = static_cast<QueryType>(helper::ParseNumber(buffer + current_byte, 2));
         current_byte += 2;
@@ -116,11 +118,43 @@ std::pair<std::vector<Resource>, size_t> ParseResource(unsigned char* buffer, ui
         {
             resource.r_data.push_back(buffer[current_byte]);
         }
-        
         result.emplace_back(std::move(resource));
     }
-    
+
     return {result, current_byte};
+}
+
+void PackHeader(std::vector<unsigned char>& buffer, const Header& header) {
+    helper::PackNumber(buffer, header.id, 2);
+    buffer.push_back((header.qr << 7) | ((int)header.opcode << 3) |
+                    (header.authoritative_answer << 2) | (header.trun_cation << 1) |
+                    header.recursion_desired);
+    buffer.push_back((header.recursion_available << 7) | header.response_code);
+    helper::PackNumber(buffer, header.question_count, 2);
+    helper::PackNumber(buffer, header.answer_count, 2);
+    helper::PackNumber(buffer, header.name_service_count, 2);
+    helper::PackNumber(buffer, header.additional_count, 2);
+}
+
+void PackQuestion(std::vector<unsigned char>& buffer, const Question& question) {
+    for (auto &part : question.domain)
+    {
+        buffer.push_back(part.size());
+        buffer.insert(buffer.end(), part.begin(), part.end());
+    }
+    buffer.push_back(0);
+    helper::PackNumber(buffer, (int)question.q_type, 2);
+    helper::PackNumber(buffer, (int)question.q_class, 2);
+}
+
+void PackResource(std::vector<unsigned char>& buffer, const Resource& resource) {
+    buffer.insert(buffer.end(), resource.name.begin(), resource.name.end());
+    buffer.push_back(0);
+    helper::PackNumber(buffer, (int)resource.r_type, 2);
+    helper::PackNumber(buffer, (int)resource.r_class, 2);
+    helper::PackNumber(buffer, resource.ttl, 4);
+    helper::PackNumber(buffer, resource.r_data.size(), 2);
+    buffer.insert(buffer.end(), resource.r_data.begin(), resource.r_data.end());
 }
 
 std::ostream& operator<< (std::ostream& os, const Resource& rs) {
